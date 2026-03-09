@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Chick Viveka — Camera</title>
+    <style>
+        :root {
+            --bg: linear-gradient(135deg, #fceabb 0%, #f8b5a0 100%);
+            --card: rgba(255, 255, 255, 0.7);
+            --card-border: rgba(255, 255, 255, 0.9);
+            --text-primary: #333;
+            --text-muted: #666;
+            --accent: #ff6a6a;
+            --accent-2: #ff9966;
+            --accent-light: rgba(255, 106, 106, 0.2);
+            --hover-shadow: rgba(255, 106, 106, 0.4);
+            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-20px); }
+        }
+        #app-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px;
+            gap: 28px;
+            flex-direction: column;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        #app-container.fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+        .ui {
+            width: 100%;
+            max-width: 1040px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+            align-items: start;
+        }
+        @media (max-width: 980px) {
+            .ui { grid-template-columns: 1fr; }
+            .result-card { order: 2; width: 100%; }
+        }
+        .card {
+            background: var(--card);
+            border-radius: 24px;
+            padding: 18px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        header .title {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        h1 {
+            font-size: 20px;
+            margin: 0;
+            letter-spacing: 0.2px;
+        }
+        p.lead {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .preview-area {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+        }
+        .video-wrap {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            width: 100%;
+            max-width: 640px;
+            aspect-ratio: 4 / 3;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform .35s cubic-bezier(.2, .9, .2, 1);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+        .video-wrap:hover {
+            transform: translateY(-6px) scale(1.01);
+        }
+        video,
+        img#capturedImage {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 16px;
+            display: block;
+            background: #000;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .btn {
+            cursor: pointer;
+            border: 0;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            color: white;
+            box-shadow: 0 6px 18px rgba(255, 106, 106, 0.3);
+            transition: transform .18s ease, box-shadow .18s ease;
+            text-decoration: none;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--hover-shadow);
+        }
+        .btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 4px 12px rgba(255, 106, 106, 0.2);
+        }
+        .btn.ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            font-weight: 600;
+            box-shadow: none;
+        }
+        .btn.hidden { display: none; }
+        .select-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            width: 100%;
+            max-width: 200px;
+            margin-bottom: 10px;
+        }
+        .select-label {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .camera-select {
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.2);
+            font-size: 14px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        .result-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+        }
+        .stat .label {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .stat .value {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+        .big {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--accent);
+            text-align: center;
+            padding: 24px 12px;
+            border-radius: 16px;
+            background: var(--accent-light);
+            border: 1px solid var(--accent);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+        small.note {
+            color: var(--text-muted);
+            display: block;
+            margin-top: 8px;
+            text-align: center;
+            font-size: 12px;
+        }
+        #messageBox {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1000;
+            font-size: 14px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        #messageBox.show {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+<div id="app-container">
+    <div class="ui">
+        <!-- Left: camera -->
+        <div class="card">
+            <header>
+                <div class="title">
+                    <img src="{{ url_for('static', filename='0b7c_jwn3_170306.jpg') }}"
+                         alt="Egg Icon"
+                         style="width:24px;height:24px;">
+                    <div>
+                        <h1>Chick Viveka</h1>
+                        <p class="lead">
+                            Capture a clear photo of the egg on a plain background for best results.
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="preview-area">
+                <div class="video-wrap">
+                    <video id="video" autoplay playsinline></video>
+                    <img id="capturedImage" alt="Captured Egg" style="display:none;">
+                </div>
+
+                <div class="select-container">
+                    <label for="camera-select" class="select-label">Select Camera:</label>
+                    <select id="camera-select" class="camera-select"></select>
+                </div>
+
+                <div class="controls">
+                    <button id="captureBtn" class="btn">📸 Capture</button>
+                    <button id="downloadBtn" class="btn ghost">Download Last</button>
+                    <button id="resetBtn" class="btn ghost hidden">Reset</button>
+                </div>
+
+                <a href="/" id="back-btn" class="btn ghost" style="margin-top:10px;">
+                    &larr; Back to Home
+                </a>
+
+                <small class="note">
+                    Tip: place the egg on a plain matte surface, avoid strong shadows,
+                    and keep the camera steady.
+                </small>
+            </div>
+        </div>
+
+        <!-- Right: results -->
+        <div class="card result-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <strong>Prediction</strong>
+                    <div style="color:var(--text-muted);font-size:12px;">
+                        Model output &amp; shape index
+                    </div>
+                </div>
+                <div id="status" style="color:var(--text-muted);font-size:13px;">
+                    Ready
+                </div>
+            </div>
+
+            <div class="result-container">
+                <div class="big" id="genderText">—</div>
+
+                <div class="stat">
+                    <div class="label">Confidence</div>
+                    <div class="value" id="conf">—</div>
+                </div>
+
+                <div class="stat">
+                    <div class="label">Shape Index (minor / major)</div>
+                    <div class="value" id="shapeIdx">—</div>
+                </div>
+
+                <div class="stat">
+                    <div class="label">Ellipse center (cx, cy)</div>
+                    <div class="value" id="ellipseInfo">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="messageBox"></div>
+
+<script>
+    const video = document.getElementById('video');
+    const capturedImage = document.getElementById('capturedImage');
+    const captureBtn = document.getElementById('captureBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const genderText = document.getElementById('genderText');
+    const confText = document.getElementById('conf');
+    const shapeText = document.getElementById('shapeIdx');
+    const ellipseInfo = document.getElementById('ellipseInfo');
+    const status = document.getElementById('status');
+    const messageBox = document.getElementById('messageBox');
+    const backButton = document.getElementById('back-btn');
+    const container = document.getElementById('app-container');
+    const cameraSelect = document.getElementById('camera-select');
+
+    let stream = null;
+    let lastImageDataUrl = null;
+    let predicting = false;
+    let autoMode = true;   // conveyor auto-capture ON/OFF
+
+    function showMessage(msg) {
+        messageBox.textContent = msg;
+        messageBox.classList.add('show');
+        setTimeout(() => messageBox.classList.remove('show'), 3000);
+    }
+
+    async function startCamera(deviceId) {
+        try {
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+            }
+            const constraints = {
+                video: {
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                    width: { ideal: 1280 },
+                    height: { ideal: 960 }
+                },
+                audio: false
+            };
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+            await video.play();
+        } catch (e) {
+            console.error("Camera error:", e);
+            status.textContent = "Camera error";
+            showMessage("Camera not found or permission denied.");
+        }
+    }
+
+    async function getCameras() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            cameraSelect.innerHTML = '';
+
+            if (videoDevices.length === 0) {
+                showMessage("No cameras found on this device.");
+                status.textContent = "No camera";
+                return;
+            }
+
+            videoDevices.forEach((device, index) => {
+                const opt = document.createElement('option');
+                opt.value = device.deviceId;
+                opt.textContent = device.label || `Camera ${index + 1}`;
+                cameraSelect.appendChild(opt);
+            });
+
+            cameraSelect.addEventListener('change', () => {
+                startCamera(cameraSelect.value);
+            });
+
+            await startCamera(videoDevices[0].deviceId);
+        } catch (e) {
+            console.error("enumerateDevices error:", e);
+            showMessage("Error accessing camera devices.");
+        }
+    }
+
+    function dataURLFromVideo() {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', 0.92);
+    }
+
+    async function sendForPrediction(dataUrl) {
+        if (predicting) return;
+        predicting = true;
+
+        status.textContent = "Predicting...";
+        capturedImage.style.display = 'none';
+
+        try {
+            const res = await fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: dataUrl })
+            });
+
+            const j = await res.json();
+
+            if (j.processed_image) {
+                lastImageDataUrl = 'data:image/jpeg;base64,' + j.processed_image;
+            } else {
+                lastImageDataUrl = dataUrl;
+            }
+
+            if (j.error) {
+                status.textContent = j.error || "No egg detected";
+                genderText.textContent = "—";
+                confText.textContent = "—";
+                shapeText.textContent = "—";
+                ellipseInfo.textContent = "—";
+            } else {
+                status.textContent = "Done";
+                genderText.textContent = j.gender || "—";
+                confText.textContent = (j.confidence !== undefined)
+                    ? `${j.confidence}%` : "—";
+                shapeText.textContent = (j.shape_index !== undefined)
+                    ? j.shape_index.toFixed(3) : "—";
+                ellipseInfo.textContent = j.ellipse
+                    ? `${Math.round(j.ellipse.cx)}, ${Math.round(j.ellipse.cy)}`
+                    : "—";
+            }
+
+        } catch (e) {
+            console.error("Prediction error:", e);
+            status.textContent = "Server error";
+            showMessage("Prediction server error.");
+        } finally {
+            predicting = false;
+        }
+    }
+
+    // 🔁 Poll Flask → which reads Arduino → tells us if 'CAPTURE' happened
+    function pollArduinoForCapture() {
+        if (!autoMode) {
+            setTimeout(pollArduinoForCapture, 200);
+            return;
+        }
+
+        fetch('/arduino-status')
+            .then(res => res.json())
+            .then(j => {
+                if (j.capture) {
+                    console.log("CAPTURE from Arduino");
+                    if (video.readyState === 4 && video.videoWidth > 0) {
+                        const img = dataURLFromVideo();
+                        sendForPrediction(img);
+                    }
+                }
+            })
+            .catch(e => console.error("Arduino status error:", e))
+            .finally(() => {
+                setTimeout(pollArduinoForCapture, 200);
+            });
+    }
+
+    downloadBtn.addEventListener('click', () => {
+        if (!lastImageDataUrl) {
+            showMessage("No image to download yet.");
+            return;
+        }
+        const a = document.createElement('a');
+        a.href = lastImageDataUrl;
+        a.download = 'egg_capture.jpg';
+        a.click();
+    });
+
+    // Capture button = toggle auto mode
+    captureBtn.addEventListener('click', () => {
+        autoMode = !autoMode;
+        if (autoMode) {
+            showMessage("Conveyor auto-capture ON");
+            captureBtn.textContent = "⏸ Pause Auto";
+        } else {
+            showMessage("Conveyor auto-capture OFF");
+            captureBtn.textContent = "▶ Resume Auto";
+        }
+    });
+
+    resetBtn.style.display = 'none';
+
+    backButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        container.classList.add('fade-out');
+        setTimeout(() => {
+            window.location.href = backButton.href;
+        }, 500);
+    });
+
+    window.onload = () => {
+        getCameras();
+        captureBtn.textContent = "⏸ Pause Auto";
+        pollArduinoForCapture();
+    };
+</script>
+
+</body>
+</html>
